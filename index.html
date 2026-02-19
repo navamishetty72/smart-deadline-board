@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deadline Board</title>
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #0B1220;
+  --card: #121A2A;
+  --accent: #00C6FF;
+  --danger: #FF2E63;
+  --text: #E6EDF3;
+  --muted: #8B949E;
+  --border: #1E293B;
+}
+
+body {
+  font-family: Inter, sans-serif;
+  background: radial-gradient(circle at top left, #0F1B33, #0B1220);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--text);
+}
+
+.container {
+  width: 100%;
+  max-width: 600px;
+  background: var(--card);
+  padding: 35px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+}
+
+h1 {
+  margin-bottom: 25px;
+  font-size: 22px;
+  text-align: center;
+  color: var(--accent);
+}
+
+.stats {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 25px;
+}
+
+.stat {
+  background: #0F1726;
+  padding: 15px;
+  border-radius: 12px;
+  width: 48%;
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 20px;
+  font-weight: bold;
+  color: var(--accent);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.input-section {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 25px;
+}
+
+input {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #0E1626;
+  color: var(--text);
+  flex: 1;
+}
+
+button {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: black;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.task {
+  background: #0E1626;
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 15px;
+  border: 1px solid var(--border);
+}
+
+.task.overdue {
+  border-color: var(--danger);
+  box-shadow: 0 0 10px rgba(255, 46, 99, 0.3);
+}
+
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.task-time {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.task-time.overdue {
+  color: var(--danger);
+}
+
+.progress-bar {
+  height: 6px;
+  background: #1E293B;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.progress {
+  height: 100%;
+  background: var(--accent);
+}
+
+.complete-btn {
+  background: var(--danger);
+  color: white;
+  width: 100%;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1>Deadline Board</h1>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-number" id="totalTasks">0</div>
+      <div class="stat-label">Total Tasks</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number" id="urgentTasks">0</div>
+      <div class="stat-label">Urgent (24h)</div>
+    </div>
+  </div>
+
+  <div class="input-section">
+    <input type="text" id="taskInput" placeholder="Assignment Name">
+    <input type="datetime-local" id="dateInput">
+    <button onclick="addTask()">Add</button>
+  </div>
+
+  <div id="taskList"></div>
+
+</div>
+
+<script>
+let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+
+function saveTasks() {
+  localStorage.setItem("tasks", JSON.stringify(tasks));
+}
+
+function addTask() {
+  const name = document.getElementById("taskInput").value.trim();
+  const date = document.getElementById("dateInput").value;
+
+  if (!name || !date) {
+    alert("Fill all fields");
+    return;
+  }
+
+  tasks.push({
+    name: name,
+    deadline: date,
+    created: new Date().toISOString()
+  });
+
+  saveTasks();
+  displayTasks();
+
+  document.getElementById("taskInput").value = "";
+  document.getElementById("dateInput").value = "";
+}
+
+function displayTasks() {
+  const list = document.getElementById("taskList");
+  list.innerHTML = "";
+
+  let urgent = 0;
+
+  tasks.forEach((task, index) => {
+    renderTask(task, index);
+
+    const now = new Date().getTime();
+    const deadline = new Date(task.deadline).getTime();
+    const hoursLeft = (deadline - now) / (1000 * 60 * 60);
+
+    if (hoursLeft <= 24 && hoursLeft > 0) urgent++;
+  });
+
+  document.getElementById("totalTasks").textContent = tasks.length;
+  document.getElementById("urgentTasks").textContent = urgent;
+}
+
+function renderTask(task, index) {
+  const list = document.getElementById("taskList");
+
+  const now = new Date().getTime();
+  const deadline = new Date(task.deadline).getTime();
+  const created = new Date(task.created).getTime();
+
+  const total = deadline - created;
+  const left = deadline - now;
+
+  let percent = 0;
+  if (total > 0) percent = 100 - ((left / total) * 100);
+  if (percent < 0) percent = 100;
+
+  const hoursLeft = Math.floor(left / (1000 * 60 * 60));
+  const isOverdue = left <= 0;
+
+  const div = document.createElement("div");
+  div.className = "task";
+  if (isOverdue) div.classList.add("overdue");
+
+  div.innerHTML = `
+    <div class="task-header">
+      <div>${task.name}</div>
+      <div class="task-time ${isOverdue ? "overdue" : ""}">
+        ${isOverdue ? "Overdue ❗" : hoursLeft + " hrs left"}
+      </div>
+    </div>
+    <div class="progress-bar">
+      <div class="progress" style="width:${percent}%"></div>
+    </div>
+    <button class="complete-btn">Complete</button>
+  `;
+
+  div.querySelector(".complete-btn").onclick = function () {
+    tasks.splice(index, 1);
+    saveTasks();
+    displayTasks();
+  };
+
+  list.appendChild(div);
+}
+
+displayTasks();
+</script>
+
+</body>
+</html>
